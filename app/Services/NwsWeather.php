@@ -47,11 +47,11 @@ class NwsWeather
 
     // U.S. Soccer "Recognize to Recover" heat guidelines for Category 3 regions (°F), which includes Texas
     protected const WBGT_LEVELS = [
-        ['min' => 92.0, 'level' => 'black', 'range' => '≥ 92.0°', 'label' => 'No outdoor training; delay until cooler or cancel'],
-        ['min' => 90.1, 'level' => 'red', 'range' => '90.1–91.9°', 'label' => 'Max 1 hour, four 4 min breaks, no extra conditioning'],
-        ['min' => 87.1, 'level' => 'orange', 'range' => '87.1–90.0°', 'label' => 'Max 2 hours, four 4 min breaks per hour (or 10 min every 30)'],
-        ['min' => 82.2, 'level' => 'yellow', 'range' => '82.2–87.0°', 'label' => 'Three 4 min breaks per hour (or 12 min every 40)'],
-        ['min' => null, 'level' => 'green', 'range' => '≤ 82.1°', 'label' => 'Normal activity, three 3 min breaks per hour (or 10 min every 40)'],
+        ['min' => 92.0, 'level' => 'black', 'short' => 'No outdoor training', 'range' => '≥ 92.0°', 'label' => 'No outdoor training; delay until cooler or cancel'],
+        ['min' => 90.1, 'level' => 'red', 'short' => 'Max 1 hr, four 4 min breaks', 'range' => '90.1–91.9°', 'label' => 'Max 1 hour, four 4 min breaks, no extra conditioning'],
+        ['min' => 87.1, 'level' => 'orange', 'short' => 'Max 2 hrs, four 4 min breaks/hr', 'range' => '87.1–90.0°', 'label' => 'Max 2 hours, four 4 min breaks per hour (or 10 min every 30)'],
+        ['min' => 82.2, 'level' => 'yellow', 'short' => 'Three 4 min breaks/hr', 'range' => '82.2–87.0°', 'label' => 'Three 4 min breaks per hour (or 12 min every 40)'],
+        ['min' => null, 'level' => 'green', 'short' => 'Normal, three 3 min breaks/hr', 'range' => '≤ 82.1°', 'label' => 'Normal activity, three 3 min breaks per hour (or 10 min every 40)'],
     ];
 
     /**
@@ -77,6 +77,7 @@ class NwsWeather
                     }
 
                     $hours[$time->timestamp] ??= ['time' => $time];
+
                     $value = $this->convert($entry['value'], $layer['uom']);
                     $hours[$time->timestamp][$key] = $value === null ? null : (int) round($value);
 
@@ -99,6 +100,9 @@ class NwsWeather
                 ? WbgtChart::lookup($hour['temperature'], $hour['humidity'])
                 : null;
             $hour['chartRisk'] = $hour['chartWbgt'] === null ? null : self::wbgtRisk($hour['chartWbgt']);
+
+            $hour['rainIcons'] = self::percentIcons($hour['rainChance'] ?? 0);
+            $hour['thunderIcons'] = self::percentIcons($hour['thunder'] ?? 0);
             $byDay[$hour['time']->format('Y-m-d')][] = $hour;
         }
 
@@ -143,6 +147,17 @@ class NwsWeather
         return $byDay;
     }
 
+    // Number of rain/thunder icons to show for a percent chance
+    public static function percentIcons(int $percent): int
+    {
+        return match (true) {
+            $percent >= 70 => 3,
+            $percent >= 40 => 2,
+            $percent >= 15 => 1,
+            default => 0,
+        };
+    }
+
     public static function hazardName(string $phenomenon, ?string $significance): string
     {
         // Non-VTEC hazards come through as CamelCase names, e.g. OzoneActionDay
@@ -172,7 +187,7 @@ class NwsWeather
 
     protected function gridData(): array
     {
-        return Cache::remember('nws.grid-data.v2.'.$this->locationKey(), now()->addMinutes(20), function () {
+        return Cache::remember('nws.grid-data.'.$this->locationKey(), now()->addMinutes(20), function () {
             $properties = $this->get($this->gridDataUrl())['properties'];
 
             return collect(self::LAYERS)
