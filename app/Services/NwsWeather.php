@@ -4,8 +4,10 @@ namespace App\Services;
 
 use Carbon\CarbonImmutable;
 use Carbon\CarbonInterval;
+use Illuminate\Support\Arr;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Http;
+use Illuminate\Support\Str;
 
 class NwsWeather
 {
@@ -16,8 +18,32 @@ class NwsWeather
         'humidity' => 'relativeHumidity',
         'wbgt' => 'wetBulbGlobeTemperature',
         'rainChance' => 'probabilityOfPrecipitation',
-        'wind' => 'windSpeed',
+        'thunder' => 'probabilityOfThunder',
+        'heatRisk' => 'heatRisk',
+        'hazards' => 'hazards',
     ];
+
+    // NWS HeatRisk daily index
+    protected const HEAT_RISK_LEVELS = [
+        0 => ['level' => 'green', 'label' => 'Little to none'],
+        1 => ['level' => 'yellow', 'label' => 'Minor'],
+        2 => ['level' => 'orange', 'label' => 'Moderate'],
+        3 => ['level' => 'red', 'label' => 'Major'],
+        4 => ['level' => 'magenta', 'label' => 'Extreme'],
+    ];
+
+    // VTEC phenomenon codes likely to matter for outdoor sports; anything else falls back to the raw code
+    protected const HAZARD_PHENOMENA = [
+        'HT' => 'Heat', 'EH' => 'Excessive Heat', 'XH' => 'Extreme Heat',
+        'SV' => 'Severe Thunderstorm', 'TO' => 'Tornado', 'FF' => 'Flash Flood', 'FA' => 'Flood', 'FL' => 'Flood',
+        'WI' => 'Wind', 'HW' => 'High Wind', 'LW' => 'Lake Wind', 'FG' => 'Dense Fog', 'FW' => 'Red Flag',
+        'WC' => 'Wind Chill', 'CW' => 'Cold Weather', 'EC' => 'Extreme Cold', 'FZ' => 'Freeze', 'FR' => 'Frost',
+        'WS' => 'Winter Storm', 'WW' => 'Winter Weather', 'IS' => 'Ice Storm', 'DU' => 'Blowing Dust', 'AQ' => 'Air Quality',
+    ];
+
+    protected const HAZARD_SIGNIFICANCE = ['W' => 'Warning', 'A' => 'Watch', 'Y' => 'Advisory', 'S' => 'Statement'];
+
+    protected const HEAT_PHENOMENA = ['HT', 'EH', 'XH'];
 
     // U.S. Soccer "Recognize to Recover" heat guidelines for Category 3 regions (°F), which includes Texas
     protected const WBGT_LEVELS = [
@@ -38,7 +64,7 @@ class NwsWeather
         $end = $now->startOfDay()->addDays($days);
 
         $hours = [];
-        foreach ($this->gridData() as $key => $layer) {
+        foreach (Arr::except($this->gridData(), 'hazards') as $key => $layer) {
             foreach ($layer['values'] as $entry) {
                 [$start, $duration] = explode('/', $entry['validTime']);
                 $time = CarbonImmutable::parse($start)->setTimezone($timezone);
@@ -79,6 +105,57 @@ class NwsWeather
         return $byDay;
     }
 
+    /**
+     * Active NWS hazards (advisories, watches, warnings) grouped by local date (Y-m-d).
+     */
+    public function hazardsByDay(int $days = 3): array
+    {
+        $timezone = config('services.nws.timezone');
+        $now = CarbonImmutable::now($timezone)->startOfHour();
+
+        $byDay = [];
+        foreach ($this->gridData()['hazards']['values'] as $entry) {
+            [$start, $duration] = explode('/', $entry['validTime']);
+            $start = CarbonImmutable::parse($start)->setTimezone($timezone);
+            $end = $start->add(CarbonInterval::make($duration));
+
+            for ($day = $now->startOfDay(); $day < $now->startOfDay()->addDays($days); $day = $day->addDay()) {
+                $from = $start->max($day)->max($now);
+                $to = $end->min($day->addDay());
+
+                if ($from >= $to) {
+                    continue;
+                }
+
+                foreach ($entry['value'] as $hazard) {
+                    $byDay[$day->format('Y-m-d')][] = [
+                        'name' => self::hazardName($hazard['phenomenon'], $hazard['significance']),
+                        'isHeat' => in_array($hazard['phenomenon'], self::HEAT_PHENOMENA),
+                        'isWarning' => $hazard['significance'] === 'W',
+                        'when' => $from->equalTo($day) && $to->equalTo($day->addDay())
+                            ? 'all day'
+                            : $from->format('ga').'–'.$to->format('ga'),
+                    ];
+                }
+            }
+        }
+
+        return $byDay;
+    }
+
+    public static function hazardName(string $phenomenon, ?string $significance): string
+    {
+        // Non-VTEC hazards come through as CamelCase names, e.g. OzoneActionDay
+        $name = self::HAZARD_PHENOMENA[$phenomenon] ?? Str::headline($phenomenon);
+
+        return trim($name.' '.(self::HAZARD_SIGNIFICANCE[$significance] ?? ''));
+    }
+
+    public static function heatRisk(?int $value): ?array
+    {
+        return isset(self::HEAT_RISK_LEVELS[$value]) ? ['value' => $value] + self::HEAT_RISK_LEVELS[$value] : null;
+    }
+
     public static function wbgtRisk(float $wbgt): array
     {
         foreach (self::WBGT_LEVELS as $level) {
@@ -95,7 +172,7 @@ class NwsWeather
 
     protected function gridData(): array
     {
-        return Cache::remember('nws.grid-data.'.$this->locationKey(), now()->addMinutes(20), function () {
+        return Cache::remember('nws.grid-data.v2.'.$this->locationKey(), now()->addMinutes(20), function () {
             $properties = $this->get($this->gridDataUrl())['properties'];
 
             return collect(self::LAYERS)

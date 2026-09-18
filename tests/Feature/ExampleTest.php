@@ -20,14 +20,22 @@ test('the forecast page shows NWS and chart WBGT values', function () {
             'apparentTemperature' => $layer('wmoUnit:degC', 38),
             'relativeHumidity' => $layer('wmoUnit:percent', 45),
             'wetBulbGlobeTemperature' => $layer('wmoUnit:degC', 30.5556), // 87°F
-            'probabilityOfPrecipitation' => $layer('wmoUnit:percent', 10),
-            'windSpeed' => $layer('wmoUnit:km_h-1', 16.0934),
+            'probabilityOfPrecipitation' => $layer('wmoUnit:percent', 45),
+            'probabilityOfThunder' => $layer('wmoUnit:percent', 35),
+            'heatRisk' => $layer('', 3),
+            'hazards' => ['values' => [
+                ['validTime' => '2026-09-18T18:00:00+00:00/PT5H', 'value' => [
+                    ['phenomenon' => 'HT', 'significance' => 'Y', 'event_number' => 1],
+                    ['phenomenon' => 'OzoneActionDay', 'significance' => null, 'event_number' => null],
+                ]],
+            ]],
         ]]),
     ]);
 
     $this->get('/')
         ->assertOk()
-        ->assertSeeInOrder(['12pm', '95°', '100°', '87&deg;', '93.2&deg;', '10%'], false)
+        ->assertSeeInOrder(['3 Major', 'Heat Advisory', '1pm–6pm', 'Ozone Action Day', '12pm', '100°', '87&deg;', '93.2&deg;', '45% chance of rain', '💧💧', '35% chance of thunder', '⚡'], false)
+        ->assertDontSee('⚡⚡')
         ->assertSee('2pm')
         ->assertDontSee('3pm');
 });

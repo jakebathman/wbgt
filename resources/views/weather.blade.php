@@ -19,7 +19,16 @@
         'orange' => 'bg-orange-300 text-orange-950',
         'red' => 'bg-red-500 text-white',
         'black' => 'bg-black text-white',
+        'magenta' => 'bg-fuchsia-700 text-white',
     ];
+
+    // Number of rain/thunder icons to show for a percent chance
+    $icons = fn (int $percent) => match (true) {
+        $percent >= 70 => 3,
+        $percent >= 40 => 2,
+        $percent >= 15 => 1,
+        default => 0,
+    };
 @endphp
 
 <body class="p-6 font-mono">
@@ -41,6 +50,7 @@
                     </div>
                 @endforeach
                 <div class="mt-1 text-gray-500">WBGT is the NWS forecast, which accounts for sun, clouds, and wind. Chart is the U.S. Soccer temperature + humidity lookup table (nearest cell), which assumes full sun and light wind.</div>
+                <div class="mt-1 text-gray-500">💧 rain and ⚡️ thunder chance: one icon at 15%+, two at 40%+, three at 70%+. NWS often has no thunder forecast for the first day or two.</div>
                 <div class="mt-1 text-gray-500">Matches: 4 min hydration break per 30 min of play at 89.6&deg;+. Levels from U.S. Soccer heat guidelines (Category 3).</div>
             </div>
 
@@ -49,6 +59,7 @@
                     $day = $hours[0]['time'];
                     $peak = collect($hours)->whereNotNull('wbgt')->sortByDesc('wbgt')->first();
                     $chartPeak = collect($hours)->whereNotNull('chartWbgt')->sortByDesc('chartWbgt')->first();
+                    $heatRisk = \App\Services\NwsWeather::heatRisk(collect($hours)->max('heatRisk'));
                 @endphp
 
                 <div class="mt-10">
@@ -75,23 +86,38 @@
                         </div>
                     </div>
 
+                    @if ($heatRisk)
+                        <div class="mt-1 text-sm">
+                            NWS HeatRisk
+                            <span class="{{ $riskClasses[$heatRisk['level']] }} rounded px-1.5 py-0.5 font-semibold">{{ $heatRisk['value'] }} {{ $heatRisk['label'] }}</span>
+                        </div>
+                    @endif
+
+                    @foreach ($hazards[$date] ?? [] as $hazard)
+                        <div @class([
+                            'mt-2 rounded border-l-4 px-3 py-1.5 text-sm',
+                            'border-red-600 bg-red-50 text-red-900' => $hazard['isHeat'] || $hazard['isWarning'],
+                            'border-amber-500 bg-amber-50 text-amber-900' => !($hazard['isHeat'] || $hazard['isWarning']),
+                        ])>
+                            <span class="font-semibold">{{ $hazard['name'] }}</span>
+                            <span class="opacity-75">{{ $hazard['when'] }}</span>
+                        </div>
+                    @endforeach
+
                     <table class="mt-3 w-full text-right text-sm">
                         <thead>
                             <tr class="border-b border-gray-300 text-xs text-gray-500">
                                 <th class="py-1 text-left font-normal">Time</th>
-                                <th class="font-normal">Temp</th>
                                 <th class="font-normal">Feels</th>
                                 <th class="font-normal">WBGT</th>
                                 <th class="font-normal">Chart</th>
-                                <th class="font-normal">Rain</th>
-                                <th class="font-normal">Wind mph</th>
+                                <th class="pl-3 text-left font-normal">Rain / Thunder</th>
                             </tr>
                         </thead>
                         <tbody>
                             @foreach ($hours as $hour)
                                 <tr class="border-b border-gray-100">
                                     <td class="py-1 text-left">{{ $hour['time']->format('ga') }}</td>
-                                    <td>{{ isset($hour['temperature']) ? $hour['temperature'] . '°' : '–' }}</td>
                                     <td>{{ isset($hour['feelsLike']) ? $hour['feelsLike'] . '°' : '–' }}</td>
                                     <td>
                                         @if ($hour['risk'])
@@ -113,8 +139,14 @@
                                             –
                                         @endif
                                     </td>
-                                    <td>{{ isset($hour['rainChance']) ? $hour['rainChance'] . '%' : '–' }}</td>
-                                    <td>{{ $hour['wind'] ?? '–' }}</td>
+                                    <td class="whitespace-nowrap pl-3 text-left">
+                                        @if ($icons($hour['rainChance'] ?? 0))
+                                            <span title="{{ $hour['rainChance'] }}% chance of rain">{{ str_repeat('💧', $icons($hour['rainChance'])) }}</span>
+                                        @endif
+                                        @if ($icons($hour['thunder'] ?? 0))
+                                            <span title="{{ $hour['thunder'] }}% chance of thunder">{{ str_repeat('⚡️', $icons($hour['thunder'])) }}</span>
+                                        @endif
+                                    </td>
                                 </tr>
                             @endforeach
                         </tbody>
