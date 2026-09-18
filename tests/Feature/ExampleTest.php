@@ -14,6 +14,10 @@ test('the forecast page shows NWS and chart WBGT values', function () {
     ];
 
     Http::fake([
+        'widget.api.perryweather.com/*' => Http::response(['data' => [
+            ['observationTime' => '2026-09-18T17:00:00Z', 'wbgt' => ['value' => 87.06, 'unit' => 'F']],
+            ['observationTime' => '2026-09-18T18:00:00Z', 'wbgt' => ['value' => 90.14, 'unit' => 'F']],
+        ]]),
         'api.weather.gov/points/*' => Http::response(['properties' => ['forecastGridData' => 'https://api.weather.gov/gridpoints/FWD/95,122']]),
         'api.weather.gov/gridpoints/*' => Http::response(['properties' => [
             'temperature' => $layer('wmoUnit:degC', 35), // 95°F
@@ -34,14 +38,14 @@ test('the forecast page shows NWS and chart WBGT values', function () {
 
     $this->get('/')
         ->assertOk()
-        ->assertSeeInOrder(['3 Major', 'Heat Advisory', '1pm–6pm', 'Ozone Action Day', '12pm', '100°', '87&deg;', '93.2&deg;', '45% chance of rain', '💧💧', '35% chance of thunder', '⚡'], false)
+        ->assertSeeInOrder(['3 Major', 'Heat Advisory', '1pm–6pm', 'Ozone Action Day', '12pm', '100°', '87.1&deg;', '87&deg;', '93.2&deg;', '45% chance of rain', '💧💧', '35% chance of thunder', '⚡'], false)
         ->assertDontSee('⚡⚡')
         ->assertSee('2pm')
         ->assertDontSee('3pm');
 });
 
 test('the forecast page shows an error when NWS is down', function () {
-    Http::fake(['api.weather.gov/*' => Http::response(null, 500)]);
+    Http::fake(['*' => Http::response(null, 500)]);
 
     $this->get('/')->assertOk()->assertSee("Couldn't load the forecast", false);
 });
@@ -58,4 +62,18 @@ test('the chart lookup snaps to the nearest cell', function () {
         ->and(WbgtChart::lookup(68, 0))->toBe(59.0)
         ->and(WbgtChart::lookup(60, 50))->toBeNull()
         ->and(WbgtChart::lookup(110, 90))->toBeNull();
+});
+
+test('the page still loads when the MSA station forecast is unavailable', function () {
+    Carbon::setTestNow('2026-09-18 12:00:00 America/Chicago');
+
+    Http::fake([
+        'widget.api.perryweather.com/*' => Http::response(null, 500),
+        'api.weather.gov/points/*' => Http::response(['properties' => ['forecastGridData' => 'https://api.weather.gov/gridpoints/FWD/95,122']]),
+        'api.weather.gov/gridpoints/*' => Http::response(['properties' => [
+            'wetBulbGlobeTemperature' => ['uom' => 'wmoUnit:degC', 'values' => [['validTime' => '2026-09-18T17:00:00+00:00/PT1H', 'value' => 30]]],
+        ]]),
+    ]);
+
+    $this->get('/')->assertOk()->assertSee('86&deg;', false)->assertDontSee("Couldn't load the forecast", false);
 });

@@ -54,6 +54,7 @@
                 @php
                     $day = $hours[0]['time'];
                     $peak = collect($hours)->whereNotNull('wbgt')->sortByDesc('wbgt')->first();
+                    $msaPeak = collect($hours)->whereNotNull('msaWbgt')->sortByDesc('msaWbgt')->first();
                     $chartPeak = collect($hours)->whereNotNull('chartWbgt')->sortByDesc('chartWbgt')->first();
                     $heatRisk = \App\Services\NwsWeather::heatRisk(collect($hours)->max('heatRisk'));
                 @endphp
@@ -88,11 +89,12 @@
                     <table class="w-full table-fixed text-center text-sm">
                         <thead>
                             <tr class="border-b border-gray-200 text-xs text-gray-500">
-                                <th class="w-[18%] py-2 pl-4 text-left font-normal">Time</th>
-                                <th class="w-[18%] font-normal">Feels</th>
-                                <th class="w-[24%] font-normal">WBGT</th>
-                                <th class="w-[24%] font-normal">Chart</th>
-                                <th class="w-[16%]"></th>
+                                <th class="w-[14%] py-2 pl-4 text-left font-normal">Time</th>
+                                <th class="w-[14%] font-normal">Feels</th>
+                                <th class="w-[19%] font-normal">MSA</th>
+                                <th class="w-[19%] font-normal">NWS</th>
+                                <th class="w-[19%] font-normal">Chart</th>
+                                <th class="w-[15%]"></th>
                             </tr>
                         </thead>
                         <tbody>
@@ -100,6 +102,16 @@
                                 <tr class="border-b border-gray-100 last:border-0">
                                     <td class="py-1.5 pl-4 text-left text-gray-600">{{ $hour['time']->format('ga') }}</td>
                                     <td>{{ isset($hour['feelsLike']) ? $hour['feelsLike'] . '°' : '–' }}</td>
+                                    <td class="px-1">
+                                        @if ($hour['msaRisk'])
+                                            <span
+                                                class="{{ $riskClasses[$hour['msaRisk']['level']] }} block rounded py-0.5 font-semibold"
+                                                title="{{ $hour['msaRisk']['label'] }}"
+                                            >{{ number_format($hour['msaWbgt'], 1) }}&deg;</span>
+                                        @else
+                                            <span class="text-gray-300">–</span>
+                                        @endif
+                                    </td>
                                     <td class="px-1">
                                         @if ($hour['risk'])
                                             <span
@@ -135,8 +147,9 @@
                             <tfoot>
                                 <tr class="border-t border-gray-200 bg-gray-50 text-xs text-gray-500">
                                     <td class="py-2 pl-4 text-left" colspan="2">Peak</td>
-                                    <td class="whitespace-nowrap">{{ $peak ? $peak['wbgt'] . '° · ' . $peak['time']->format('ga') : '' }}</td>
-                                    <td class="whitespace-nowrap">{{ $chartPeak ? number_format($chartPeak['chartWbgt'], 1) . '° · ' . $chartPeak['time']->format('ga') : '' }}</td>
+                                    <td class="py-1.5 leading-tight">@if ($msaPeak){{ number_format($msaPeak['msaWbgt'], 1) }}&deg;<br>{{ $msaPeak['time']->format('ga') }}@endif</td>
+                                    <td class="py-1.5 leading-tight">@if ($peak){{ $peak['wbgt'] }}&deg;<br>{{ $peak['time']->format('ga') }}@endif</td>
+                                    <td class="py-1.5 leading-tight">@if ($chartPeak){{ number_format($chartPeak['chartWbgt'], 1) }}&deg;<br>{{ $chartPeak['time']->format('ga') }}@endif</td>
                                     <td></td>
                                 </tr>
                             </tfoot>
@@ -148,7 +161,8 @@
             <details class="mt-10 text-xs text-gray-500">
                 <summary class="cursor-pointer text-sm">About these numbers</summary>
                 <ul class="mt-2 list-disc space-y-1.5 pl-4">
-                    <li><span class="font-semibold">WBGT</span> is the NWS wet bulb globe temperature forecast, which accounts for sun, clouds, and wind.</li>
+                    <li><span class="font-semibold">MSA</span> is the Perry Weather forecast for the weather station at {{ config('services.perry_weather.location_name') }}. McKinney Soccer Association makes heat decisions from that station's live readings. It only reaches about 36 hours out.</li>
+                    <li><span class="font-semibold">NWS</span> is the National Weather Service wet bulb globe temperature forecast, which accounts for sun, clouds, and wind.</li>
                     <li><span class="font-semibold">Chart</span> is the U.S. Soccer temperature + humidity lookup table (nearest cell). It assumes full sun and light wind, so it usually reads hotter.</li>
                     <li>Colors are the U.S. Soccer heat guideline alert levels for Category 3 regions:
                         <ul class="mt-1 space-y-0.5">

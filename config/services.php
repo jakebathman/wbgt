@@ -35,6 +35,13 @@ return [
         ],
     ],
 
+    'perry_weather' => [
+        'url' => env('PERRY_WEATHER_URL', 'https://widget.api.perryweather.com/v1'),
+        // Other McKinney field IDs are listed in .env.example
+        'location_id' => env('PERRY_WEATHER_LOCATION_ID', 'eaed2528-92ff-4fca-bb27-028e2c70a058'),
+        'location_name' => env('PERRY_WEATHER_LOCATION_NAME', 'Al Ruschhaupt Park'),
+    ],
+
     'nws' => [
         'user_agent' => env('NWS_USER_AGENT', 'wbgt (jake.bathman@gmail.com)'),
         'location_name' => env('WEATHER_LOCATION_NAME', 'McKinney, TX'),
