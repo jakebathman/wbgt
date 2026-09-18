@@ -32,7 +32,14 @@
 
 <body class="p-6 font-mono">
     <div class="mx-auto max-w-2xl">
-        <h1 class="text-2xl font-bold">{{ $locationName }}</h1>
+        <div class="flex items-start justify-between gap-4">
+            <h1 class="text-2xl font-bold">{{ $locationName }}</h1>
+            <button
+                type="button"
+                class="rounded-full border border-gray-200 px-3 py-1 text-sm text-gray-600 active:bg-gray-100"
+                onclick="this.textContent = 'Refreshing…'; location.reload()"
+            >↻ Refresh</button>
+        </div>
         <div class="text-sm text-gray-500">Hourly WBGT forecast from the National Weather Service</div>
 
         @if ($days === null)
@@ -204,6 +211,17 @@
         });
         refresh();
         setInterval(refresh, 30000);
+
+        // Home screen web apps have no reload button or pull to refresh, so reload when the page is stale
+        const loadedAt = Date.now();
+        const reloadIfStale = () => {
+            if (document.visibilityState === 'visible' && Date.now() - loadedAt > 10 * 60000) {
+                location.reload();
+            }
+        };
+        document.addEventListener('visibilitychange', reloadIfStale);
+        window.addEventListener('pageshow', reloadIfStale);
+        setInterval(reloadIfStale, 60000);
     </script>
 </body>
 
