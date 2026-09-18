@@ -35,4 +35,12 @@ return [
         ],
     ],
 
+    'nws' => [
+        'user_agent' => env('NWS_USER_AGENT', 'wbgt (jake.bathman@gmail.com)'),
+        'location_name' => env('WEATHER_LOCATION_NAME', 'McKinney, TX'),
+        'latitude' => env('WEATHER_LATITUDE', 33.1972),
+        'longitude' => env('WEATHER_LONGITUDE', -96.6398),
+        'timezone' => env('WEATHER_TIMEZONE', 'America/Chicago'),
+    ],
+
 ];
