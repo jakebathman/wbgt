@@ -64,7 +64,7 @@ class NwsWeather
         $end = $now->startOfDay()->addDays($days);
 
         $hours = [];
-        foreach (Arr::except($this->gridData(), 'hazards') as $key => $layer) {
+        foreach (Arr::except($this->gridData()['layers'], 'hazards') as $key => $layer) {
             foreach ($layer['values'] as $entry) {
                 [$start, $duration] = explode('/', $entry['validTime']);
                 $time = CarbonImmutable::parse($start)->setTimezone($timezone);
@@ -118,7 +118,7 @@ class NwsWeather
         $now = CarbonImmutable::now($timezone)->startOfHour();
 
         $byDay = [];
-        foreach ($this->gridData()['hazards']['values'] as $entry) {
+        foreach ($this->gridData()['layers']['hazards']['values'] as $entry) {
             [$start, $duration] = explode('/', $entry['validTime']);
             $start = CarbonImmutable::parse($start)->setTimezone($timezone);
             $end = $start->add(CarbonInterval::make($duration));
@@ -158,6 +158,19 @@ class NwsWeather
         };
     }
 
+    /**
+     * When we last pulled the forecast, and when NWS issued it.
+     */
+    public function updatedAt(): array
+    {
+        $data = $this->gridData();
+
+        return [
+            'fetched' => CarbonImmutable::parse($data['fetchedAt']),
+            'issued' => $data['issuedAt'] ? CarbonImmutable::parse($data['issuedAt']) : null,
+        ];
+    }
+
     public static function hazardName(string $phenomenon, ?string $significance): string
     {
         // Non-VTEC hazards come through as CamelCase names, e.g. OzoneActionDay
@@ -187,15 +200,19 @@ class NwsWeather
 
     protected function gridData(): array
     {
-        return Cache::remember('nws.grid-data.'.$this->locationKey(), now()->addMinutes(20), function () {
+        return Cache::remember('nws.forecast.'.$this->locationKey(), now()->addMinutes(20), function () {
             $properties = $this->get($this->gridDataUrl())['properties'];
 
-            return collect(self::LAYERS)
-                ->map(fn ($layer) => [
-                    'uom' => $properties[$layer]['uom'] ?? null,
-                    'values' => $properties[$layer]['values'] ?? [],
-                ])
-                ->all();
+            return [
+                'fetchedAt' => now()->toIso8601String(),
+                'issuedAt' => $properties['updateTime'] ?? null,
+                'layers' => collect(self::LAYERS)
+                    ->map(fn ($layer) => [
+                        'uom' => $properties[$layer]['uom'] ?? null,
+                        'values' => $properties[$layer]['values'] ?? [],
+                    ])
+                    ->all(),
+            ];
         });
     }
 

@@ -8,9 +8,10 @@ Route::get('/', function (NwsWeather $weather, PerryWeather $perry) {
     try {
         $days = $weather->hourlyByDay();
         $hazards = $weather->hazardsByDay();
+        $updatedAt = $weather->updatedAt();
     } catch (Throwable $e) {
         report($e);
-        $days = $hazards = null;
+        $days = $hazards = $updatedAt = null;
     }
 
     // The league's field station forecast is a nice-to-have, so the page still works without it
@@ -27,6 +28,7 @@ Route::get('/', function (NwsWeather $weather, PerryWeather $perry) {
     return view('weather', [
         'days' => $days,
         'hazards' => $hazards,
+        'updatedAt' => $updatedAt,
         'levels' => NwsWeather::wbgtLevels(),
         'locationName' => config('services.nws.location_name'),
     ]);

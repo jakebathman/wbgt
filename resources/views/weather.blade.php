@@ -176,8 +176,35 @@
                     <li><span class="font-semibold">HeatRisk</span> is the NWS daily 0–4 index, which also considers how unusual the heat is and overnight lows.</li>
                 </ul>
             </details>
+
+            <footer class="mt-6 border-t border-gray-200 pt-3 text-xs text-gray-400">
+                Last updated
+                <time data-relative datetime="{{ $updatedAt['fetched']->toIso8601String() }}">{{ $updatedAt['fetched']->diffForHumans() }}</time>
+                @if ($updatedAt['issued'])
+                    &middot; NWS forecast issued
+                    <time data-relative datetime="{{ $updatedAt['issued']->toIso8601String() }}">{{ $updatedAt['issued']->diffForHumans() }}</time>
+                @endif
+            </footer>
         @endif
     </div>
+
+    {{-- Keep the "x ago" text current while the page stays open --}}
+    <script>
+        const ago = (date) => {
+            const minutes = Math.max(0, Math.round((Date.now() - date) / 60000));
+            if (minutes < 1) return 'just now';
+            if (minutes < 60) return `${minutes} minute${minutes === 1 ? '' : 's'} ago`;
+            const hours = Math.round(minutes / 60);
+            if (hours < 24) return `${hours} hour${hours === 1 ? '' : 's'} ago`;
+            const days = Math.round(hours / 24);
+            return `${days} day${days === 1 ? '' : 's'} ago`;
+        };
+        const refresh = () => document.querySelectorAll('time[data-relative]').forEach((el) => {
+            el.textContent = ago(new Date(el.dateTime));
+        });
+        refresh();
+        setInterval(refresh, 30000);
+    </script>
 </body>
 
 </html>

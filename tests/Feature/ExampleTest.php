@@ -20,6 +20,7 @@ test('the forecast page shows NWS and chart WBGT values', function () {
         ]]),
         'api.weather.gov/points/*' => Http::response(['properties' => ['forecastGridData' => 'https://api.weather.gov/gridpoints/FWD/95,122']]),
         'api.weather.gov/gridpoints/*' => Http::response(['properties' => [
+            'updateTime' => '2026-09-18T15:00:00+00:00',
             'temperature' => $layer('wmoUnit:degC', 35), // 95°F
             'apparentTemperature' => $layer('wmoUnit:degC', 38),
             'relativeHumidity' => $layer('wmoUnit:percent', 45),
@@ -40,6 +41,7 @@ test('the forecast page shows NWS and chart WBGT values', function () {
         ->assertOk()
         ->assertSeeInOrder(['3 Major', 'Heat Advisory', '1pm–6pm', 'Ozone Action Day', '12pm', '100°', '87.1&deg;', '87&deg;', '93.2&deg;', '45% chance of rain', '💧💧', '35% chance of thunder', '⚡'], false)
         ->assertDontSee('⚡⚡')
+        ->assertSeeInOrder(['Last updated', '0 seconds ago', 'NWS forecast issued', '2 hours ago'])
         ->assertSee('2pm')
         ->assertDontSee('3pm');
 });
