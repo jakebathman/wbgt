@@ -39,8 +39,7 @@ test('the forecast page shows NWS and chart WBGT values', function () {
 
     $this->get('/')
         ->assertOk()
-        ->assertSeeInOrder(['3 Major', 'Heat Advisory', '1pm–6pm', 'Ozone Action Day', '12pm', '100°', '87.1&deg;', '87&deg;', '93.2&deg;', '45% chance of rain', '💧💧', '35% chance of thunder', '⚡'], false)
-        ->assertDontSee('⚡⚡')
+        ->assertSeeInOrder(['3 Major', 'Heat Advisory', '1pm–6pm', 'Ozone Action Day', '12pm', '100°', '87.1&deg;', '87&deg;', '93.2&deg;', 'aria-label="45% chance of rain" data-level="2"', 'aria-label="35% chance of thunder" data-level="1"'], false)
         ->assertSeeInOrder(['Last updated', '0 seconds ago', 'NWS forecast issued', '2 hours ago'])
         ->assertSee('2pm')
         ->assertDontSee('3pm');

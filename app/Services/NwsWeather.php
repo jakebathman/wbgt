@@ -101,8 +101,8 @@ class NwsWeather
                 : null;
             $hour['chartRisk'] = $hour['chartWbgt'] === null ? null : self::wbgtRisk($hour['chartWbgt']);
 
-            $hour['rainIcons'] = self::percentIcons($hour['rainChance'] ?? 0);
-            $hour['thunderIcons'] = self::percentIcons($hour['thunder'] ?? 0);
+            $hour['rainLevel'] = self::chanceLevel($hour['rainChance'] ?? 0);
+            $hour['thunderLevel'] = self::chanceLevel($hour['thunder'] ?? 0);
             $byDay[$hour['time']->format('Y-m-d')][] = $hour;
         }
 
@@ -147,8 +147,10 @@ class NwsWeather
         return $byDay;
     }
 
-    // Number of rain/thunder icons to show for a percent chance
-    public static function percentIcons(int $percent): int
+    /**
+     * How strongly to show the rain/thunder icon for a percent chance: 0 hides it, 1 outlines it, 2 hatches it, 3 fills it.
+     */
+    public static function chanceLevel(int $percent): int
     {
         return match (true) {
             $percent >= 70 => 3,

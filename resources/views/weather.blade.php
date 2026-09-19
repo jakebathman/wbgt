@@ -31,6 +31,7 @@
 @endphp
 
 <body class="p-6 font-mono">
+    <x-chance-icon-defs />
     <div class="mx-auto max-w-2xl">
         <div class="flex items-start justify-between gap-4">
             <h1 class="text-2xl font-bold">{{ $locationName }}</h1>
@@ -139,12 +140,12 @@
                                             –
                                         @endif
                                     </td>
-                                    <td class="whitespace-nowrap pr-4 text-right">
-                                        @if ($hour['rainIcons'])
-                                            <span title="{{ $hour['rainChance'] }}% chance of rain">{{ str_repeat('💧', $hour['rainIcons']) }}</span>
+                                    <td class="space-x-1 whitespace-nowrap pr-4 text-right">
+                                        @if ($hour['rainLevel'])
+                                            <x-chance-icon kind="rain" :level="$hour['rainLevel']" :percent="$hour['rainChance']" />
                                         @endif
-                                        @if ($hour['thunderIcons'])
-                                            <span title="{{ $hour['thunder'] }}% chance of thunder">{{ str_repeat('⚡️', $hour['thunderIcons']) }}</span>
+                                        @if ($hour['thunderLevel'])
+                                            <x-chance-icon kind="thunder" :level="$hour['thunderLevel']" :percent="$hour['thunder']" />
                                         @endif
                                     </td>
                                 </tr>
@@ -179,7 +180,11 @@
                         </ul>
                     </li>
                     <li>Matches get a 4 min hydration break per 30 min of play at 89.6&deg;+.</li>
-                    <li>💧 rain and ⚡️ thunder chance: one icon at 15%+, two at 40%+, three at 70%+. Hover for the percent. NWS often has no thunder forecast for the first day or two.</li>
+                    <li>
+                        Rain <x-chance-icon kind="rain" level="1" percent="15" /><x-chance-icon kind="rain" level="2" percent="40" /><x-chance-icon kind="rain" level="3" percent="70" />
+                        and thunder <x-chance-icon kind="thunder" level="1" percent="15" /><x-chance-icon kind="thunder" level="2" percent="40" /><x-chance-icon kind="thunder" level="3" percent="70" />
+                        chance: outlined at 15%+, hatched at 40%+, solid at 70%+. Hover for the percent. NWS often has no thunder forecast for the first day or two.
+                    </li>
                     <li><span class="font-semibold">HeatRisk</span> is the NWS daily 0–4 index, which also considers how unusual the heat is and overnight lows.</li>
                 </ul>
             </details>
