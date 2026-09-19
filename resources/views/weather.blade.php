@@ -183,7 +183,7 @@
                     <li>
                         Rain <x-chance-icon kind="rain" level="1" percent="15" /><x-chance-icon kind="rain" level="2" percent="40" /><x-chance-icon kind="rain" level="3" percent="70" />
                         and thunder <x-chance-icon kind="thunder" level="1" percent="15" /><x-chance-icon kind="thunder" level="2" percent="40" /><x-chance-icon kind="thunder" level="3" percent="70" />
-                        chance: outlined at 15%+, hatched at 40%+, solid at 70%+. Hover for the percent. NWS often has no thunder forecast for the first day or two.
+                        chance: outlined at 15%+, part-filled at 40%+, solid at 70%+. Hover for the percent. NWS often has no thunder forecast for the first day or two.
                     </li>
                     <li><span class="font-semibold">HeatRisk</span> is the NWS daily 0–4 index, which also considers how unusual the heat is and overnight lows.</li>
                 </ul>
