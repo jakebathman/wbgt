@@ -15,6 +15,7 @@ class NwsWeather
     protected const LAYERS = [
         'temperature' => 'temperature',
         'feelsLike' => 'apparentTemperature',
+        'windChill' => 'windChill',
         'humidity' => 'relativeHumidity',
         'wbgt' => 'wetBulbGlobeTemperature',
         'rainChance' => 'probabilityOfPrecipitation',
@@ -45,6 +46,8 @@ class NwsWeather
 
     protected const HEAT_PHENOMENA = ['HT', 'EH', 'XH'];
 
+    protected const COLD_PHENOMENA = ['WC', 'CW', 'EC'];
+
     // U.S. Soccer "Recognize to Recover" heat guidelines for Category 3 regions (°F), which includes Texas
     protected const WBGT_LEVELS = [
         ['min' => 92.0, 'level' => 'black', 'short' => 'No outdoor training', 'range' => '≥ 92.0°', 'label' => 'No outdoor training; delay until cooler or cancel'],
@@ -52,6 +55,15 @@ class NwsWeather
         ['min' => 87.1, 'level' => 'orange', 'short' => 'Max 2 hrs, four 4 min breaks/hr', 'range' => '87.1–90.0°', 'label' => 'Max 2 hours, four 4 min breaks per hour (or 10 min every 30)'],
         ['min' => 82.2, 'level' => 'yellow', 'short' => 'Three 4 min breaks/hr', 'range' => '82.2–87.0°', 'label' => 'Three 4 min breaks per hour (or 12 min every 40)'],
         ['min' => null, 'level' => 'green', 'short' => 'Normal, three 3 min breaks/hr', 'range' => '≤ 82.1°', 'label' => 'Normal activity, three 3 min breaks per hour (or 10 min every 40)'],
+    ];
+
+    // U.S. Soccer "Recognize to Recover" cold weather guidelines, by wind chill (°F)
+    protected const WIND_CHILL_LEVELS = [
+        ['max' => 0, 'level' => 'black', 'short' => 'Cancel or move indoors', 'range' => '≤ 0°', 'label' => 'Extreme conditions; cancel or move activities indoors, frostbite could occur'],
+        ['max' => 15, 'level' => 'red', 'short' => 'Limit exposure, rewarm often', 'range' => '1–15°', 'label' => 'High risk of cold illness; consider modifying activity to limit exposure and rewarm more often'],
+        ['max' => 24, 'level' => 'orange', 'short' => 'Extra layers, cover skin, rewarm', 'range' => '16–24°', 'label' => 'Moderate risk of cold illness; add protective clothing, cover exposed skin, and provide a place to rewarm'],
+        ['max' => 30, 'level' => 'yellow', 'short' => 'Watch for cold injury', 'range' => '25–30°', 'label' => 'Less than ideal; be aware of the potential for cold injury and notify appropriate personnel'],
+        ['max' => null, 'level' => 'green', 'short' => 'Normal activities', 'range' => '≥ 31°', 'label' => 'Good conditions, normal activities'],
     ];
 
     /**
@@ -101,6 +113,10 @@ class NwsWeather
                 : null;
             $hour['chartRisk'] = $hour['chartWbgt'] === null ? null : self::wbgtRisk($hour['chartWbgt']);
 
+            // NWS only sets wind chill at 50° and below, and above 30° the cold guideline is just normal activity
+            $coldRisk = isset($hour['windChill']) ? self::windChillRisk($hour['windChill']) : null;
+            $hour['coldRisk'] = $coldRisk && $coldRisk['level'] !== 'green' ? $coldRisk : null;
+
             $hour['rainLevel'] = self::chanceLevel($hour['rainChance'] ?? 0);
             $hour['thunderLevel'] = self::chanceLevel($hour['thunder'] ?? 0);
             $byDay[$hour['time']->format('Y-m-d')][] = $hour;
@@ -135,6 +151,7 @@ class NwsWeather
                     $byDay[$day->format('Y-m-d')][] = [
                         'name' => self::hazardName($hazard['phenomenon'], $hazard['significance']),
                         'isHeat' => in_array($hazard['phenomenon'], self::HEAT_PHENOMENA),
+                        'isCold' => in_array($hazard['phenomenon'], self::COLD_PHENOMENA),
                         'isWarning' => $hazard['significance'] === 'W',
                         'when' => $from->equalTo($day) && $to->equalTo($day->addDay())
                             ? 'all day'
@@ -198,6 +215,23 @@ class NwsWeather
     public static function wbgtLevels(): array
     {
         return self::WBGT_LEVELS;
+    }
+
+    /**
+     * The guideline's ranges are whole degrees with gaps between them (15, then 16), so go by the rounded wind chill.
+     */
+    public static function windChillRisk(float $windChill): array
+    {
+        foreach (self::WIND_CHILL_LEVELS as $level) {
+            if ($level['max'] === null || round($windChill) <= $level['max']) {
+                return $level;
+            }
+        }
+    }
+
+    public static function windChillLevels(): array
+    {
+        return self::WIND_CHILL_LEVELS;
     }
 
     protected function gridData(): array

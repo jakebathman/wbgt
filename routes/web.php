@@ -30,6 +30,7 @@ Route::get('/', function (NwsWeather $weather, PerryWeather $perry) {
         'hazards' => $hazards,
         'updatedAt' => $updatedAt,
         'levels' => NwsWeather::wbgtLevels(),
+        'coldLevels' => NwsWeather::windChillLevels(),
         'locationName' => config('services.nws.location_name'),
     ]);
 })->name('home');
